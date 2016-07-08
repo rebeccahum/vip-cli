@@ -22,11 +22,14 @@ program
 	.option( '-t, --types <types>', 'Types of files to import. Default: jpg,jpeg,png,gif', ['jpg', 'jpeg', 'png', 'gif'], list )
 	.option( '-p, --parallel <threads>', 'Number of parallel uploads. Default: 5', 5, parseInt )
 	.option( '-i, --intermediate', 'Upload intermediate images' )
-	.option( '-f, --fast', 'Skip existing file check' )
+	.option( '-f, --first', 'Skip existing file check' )
+	.option( '-f, --overwrite', 'Skip existing file check' )
 	.action( ( site, directory, options ) => {
 		if ( 0 > directory.indexOf( 'uploads' ) ) {
 			return console.error( 'Invalid uploads directory. Uploads must be in uploads/' );
 		}
+
+		var fast = options.first || options.overwrite;
 
 		utils.findAndConfirmSite( site, site => {
 			api
@@ -119,7 +122,7 @@ program
 								};
 
 								// Upload file
-								if ( options.fast ) {
+								if ( fast ) {
 									return upload( file, cb );
 								} else {
 									request

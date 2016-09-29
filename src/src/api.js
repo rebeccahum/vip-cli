@@ -12,4 +12,4 @@ utils.getCredentials( function( err, credentials ) {
 	api.auth.token = credentials.accessToken;
 });
 
-module.exports = api;
+export default api;

@@ -89,8 +89,9 @@ program
 										return cb();
 									});
 								} else if ( stats.isFile() ) {
-									var filepath = file.split( 'uploads' );
-									var ext      = file.split( '.' );
+									var specialChars = [ "?", "[", "]", "/", "\\", "=", "<", ">", ":", ";", ",", "'", "\"", "&", "$", "#", "*", "(", ")", "|", "~", "`", "!", "{", "}", "%", "+", " " ];
+									var filepath 	 = file.split( 'uploads' );
+									var ext     	 = file.split( '.' );
 
 									ext = ext[ ext.length - 1 ];
 
@@ -104,6 +105,10 @@ program
 
 									if ( ! filepath[1] ) {
 										return cb( new Error( 'Invalid file path. Files must be in uploads/ directory.' ) );
+									}
+
+									if ( filepath[1].replace( /^\//, '' ).split( '/' ).some( ( part ) => { return specialChars.some( ( char ) => { return part.indexOf( char ) >= 0 } ) } ) ) {
+										return cb( new Error( 'Invalid file path. Files should not contain special characters.' ) );
 									}
 
 									if ( ! importing ) {

@@ -5,7 +5,7 @@ const program  = require( 'commander' );
 const async    = require( 'async' );
 const progress = require( 'progress' );
 const request  = require( 'superagent' );
-const which = require( 'which' );
+const which    = require( 'which' );
 
 
 // Ours

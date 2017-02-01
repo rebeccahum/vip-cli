@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const fs       = require( 'fs' );
+const walk     = require( 'walk' );
 const program  = require( 'commander' );
 const async    = require( 'async' );
 const progress = require( 'progress' );
@@ -222,6 +223,37 @@ program
 						processFiles( true );
 					});
 				});
+		});
+	});
+
+/**
+ * Generate a listing of all files in a directory, to be used when scraping files
+ */
+program
+	.command( 'list-files <directory> <http_base_url>' )
+	.description( 'Generate a list of all importable files in a directory, to be scraped' )
+	.option( '-t, --types <types>', 'Types of files to import', default_types, list )
+	.option( '-e, --extra-types <types>', 'Additional file types to allow that are not included in WordPress defaults', [], list )
+	.action( ( directory, httpBaseUrl, options ) => {
+		var walker = walk.walk( directory );
+
+		walker.on( 'file', ( root, file, next ) => {
+			// Check file type
+			var ext      = file.name.split( '.' );
+
+			ext = ext[ ext.length - 1 ];
+
+			if ( ! ext || ( -1 === options.types.indexOf( ext.toLowerCase() ) && -1 === options.extraTypes.indexOf( ext.toLowerCase() ) ) ) {
+				return next();
+			}
+
+			var relativePath = root.replace( directory, '' );
+
+			var url = httpBaseUrl + relativePath + '/' + file.name;
+
+			console.log( url );
+
+			next();
 		});
 	});
 

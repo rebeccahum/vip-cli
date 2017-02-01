@@ -44,6 +44,7 @@
     "throttle": "^1.0.3",
     "update-notifier": "^1.0.3",
     "vip": "automattic/vip-js-sdk",
+    "walk": "^2.3.9",
     "which": "^1.2.10"
   },
   "devDependencies": {

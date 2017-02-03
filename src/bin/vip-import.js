@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 
 const fs       = require( 'fs' );
+const readline = require( 'line-by-line' );
 const walk     = require( 'walk' );
 const program  = require( 'commander' );
 const async    = require( 'async' );
 const progress = require( 'progress' );
 const request  = require( 'superagent' );
+const execFile = require('child_process').execFile;
 const which    = require( 'which' );
 
 
@@ -247,6 +249,15 @@ program
 				return next();
 			}
 
+
+
+
+			// @todo respect the intermediate flag
+
+
+
+
+
 			var relativePath = root.replace( directory, '' );
 
 			var url = httpBaseUrl + relativePath + '/' + file.name;
@@ -256,6 +267,117 @@ program
 			next();
 		});
 	});
+
+/**
+ * Scrape the list of urls in the file <list> and import them into <site>
+ */
+program
+	.command( 'scrape-files <site> <list>' )
+	.description( 'Generate a list of all importable files in a directory, to be scraped' )
+	.option( '-t, --types <types>', 'Types of files to import', default_types, list )
+	.option( '-e, --extra-types <types>', 'Additional file types to allow that are not included in WordPress defaults', [], list )
+	.option( '-p, --parallel <threads>', 'Number of parallel uploads. Default: 5', 5, parseInt )
+	.option( '-i, --intermediate', 'Upload intermediate images' )
+	.option( '-f, --fast', 'Skip existing file check' )
+	.action( ( site, filesList, options ) => {
+		var site         = null;
+		var access_token = null;
+		var filecount    = 0;
+		var bar          = null;
+		var reader       = null;
+		var parallel     = parseInt( options.parallel );
+
+		async.waterfall([
+			utils.findAndConfirmSite.bind( utils, site, 'Importing files for site:' ),
+			( site, done ) => {
+				api
+					.get( '/sites/' + site.client_site_id + '/meta/files_access_token' )
+					.end( done );
+			},
+			( res, done ) => {
+				site = res.body.data[0];
+
+				return done( null );
+			},
+			( res, done ) => {
+				if ( ! res.body || ! res.body.data || ! res.body.data[0] || ! res.body.data[0].meta_value ) {
+					return console.error( 'Could not get files access token' );
+				}
+
+				access_token = res.body.data[0].meta_value;
+
+				return done( null );
+			}
+			execFile.bind( null, 'wc', [ '-l', filesList ] ),
+			( stdout, stderr, done ) => {
+				// Must replace out the filename, as `wc -l` returns it unless
+				// you pipe it STDIN, which we can't do with `execFile`. Also
+				// trim (wc adds spaces for formatting)
+				filecount = parseInt( stdout.replace( filesList, '' ).trim() );
+
+				return done( null );
+			},
+		], ( err ) => {
+			if ( err ) {
+				return console.error( err );
+			}
+
+			bar = new progress( 'Importing [:bar] :percent (:current/:total) :etas', {
+				total: filecount,
+				incomplete: ' ',
+				renderThrottle: 100,
+			});
+
+			// Setup queue to handle concurrency
+			var queue = async.queue( scrapeFile, parseInt( parallel ) );
+
+			// When the queue's concurrency is less than the max, we can resume reading
+			// the input file
+			queue.unsaturated = () => {
+				reader.resume();
+			};
+
+			reader = new readline( filesList );
+
+			reader.on( 'line', ( url ) => {
+				queue.push({
+					url:          url,
+					site:         site,
+					access_token: access_token,
+					bar:          bar,
+				});
+
+				if ( queue.length() > parallel * 1.5 ) { // Allow queue to be 1.5x concurrency
+					reader.pause();
+				}
+			});
+		});
+	});
+
+function scrapeFile( data, callback ) {
+
+
+
+
+	// Placeholder scraper for testing
+
+	// Filter by filetype
+
+	// Handle intermediates
+
+	// Handle 'fast' param
+
+
+
+
+	setTimeout( () => {
+		if ( data.bar ) {
+			data.bar.tick();
+		}
+
+		return callback( null );
+	}, 500 );
+}
 
 program
 	.command( 'sql <site> <file>' )

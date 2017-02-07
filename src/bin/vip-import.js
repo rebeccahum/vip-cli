@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const fs       = require( 'fs' );
+const urlUtils = require( 'url' );
 const readline = require( 'line-by-line' );
 const walk     = require( 'walk' );
 const program  = require( 'commander' );
@@ -9,7 +10,7 @@ const progress = require( 'progress' );
 const request  = require( 'superagent' );
 const execFile = require('child_process').execFile;
 const which    = require( 'which' );
-
+const promptly = require( 'promptly' );
 
 // Ours
 const api      = require( '../lib/api' );
@@ -86,6 +87,8 @@ const default_types = [
 	'key','numbers','pages',
 ];
 
+const INTERMEDIATE_IMAGE_REGEX = /-\d+x\d+\.\w{3,4}$/;
+
 program
 	.command( 'files <site> <directory>' )
 	.description( 'Import files to a VIP Go site' )
@@ -157,15 +160,12 @@ program
 									});
 								} else if ( stats.isFile() ) {
 									var filepath = file.split( 'uploads' );
-									var ext      = file.split( '.' );
 
-									ext = ext[ ext.length - 1 ];
-
-									if ( ! ext || ( options.types.indexOf( ext.toLowerCase() ) < 0 && options.extraTypes.indexOf( ext.toLowerCase() ) < 0 ) ) {
-										return cb( new Error( 'Unsupported filetype: ' + file ) );
+									if ( ! isAllowedType( file, options.types, options.extraTypes ) ) {
+										return cb( new Error( "Unsupported filetype: " + file ) );
 									}
 
-									if ( ! options.intermediate && /-\d+x\d+\.\w{3,4}$/.test( file ) ) {
+									if ( ! options.intermediate && INTERMEDIATE_IMAGE_REGEX.test( file ) ) {
 										return cb( new Error( 'Skipping intermediate image: ' + file ) );
 									}
 
@@ -241,18 +241,16 @@ program
 
 		walker.on( 'file', ( root, file, next ) => {
 			// Check file type
-			var ext      = file.name.split( '.' );
+			if ( ! isAllowedType( file, options.types, options.extraTypes ) ) {
+				return next();
+			}
 
-			ext = ext[ ext.length - 1 ];
-
-			if ( ! ext || ( -1 === options.types.indexOf( ext.toLowerCase() ) && -1 === options.extraTypes.indexOf( ext.toLowerCase() ) ) ) {
+			if ( ! options.intermediate && INTERMEDIATE_REGEX.test( file ) ) {
 				return next();
 			}
 
 
-
-
-			// @todo respect the intermediate flag
+			// @todo logging of skipped images?
 
 
 
@@ -274,6 +272,7 @@ program
 program
 	.command( 'scrape-files <site> <list>' )
 	.description( 'Generate a list of all importable files in a directory, to be scraped' )
+	.option( '-b, --blog-id', 'Blog ID of destination site (for multisite installs only)' )
 	.option( '-t, --types <types>', 'Types of files to import', default_types, list )
 	.option( '-e, --extra-types <types>', 'Additional file types to allow that are not included in WordPress defaults', [], list )
 	.option( '-p, --parallel <threads>', 'Number of parallel uploads. Default: 5', 5, parseInt )
@@ -288,7 +287,10 @@ program
 		var parallel     = parseInt( options.parallel );
 
 		async.waterfall([
-			utils.findAndConfirmSite.bind( utils, site, 'Importing files for site:' ),
+
+
+
+			/*utils.findAndConfirmSite.bind( utils, site, 'Importing files for site:' ),
 			( site, done ) => {
 				api
 					.get( '/sites/' + site.client_site_id + '/meta/files_access_token' )
@@ -307,7 +309,45 @@ program
 				access_token = res.body.data[0].meta_value;
 
 				return done( null );
-			}
+			},*/
+
+
+			// Get the WP blog id of the target site (if multisite), so we can properly
+			// construct multisite file urls
+			/*( done ) => {
+				// Not a multisite, nothing to do
+				if ( ! site.is_multisite ) {
+					return done( null );
+				}
+
+				request.get( 'https://' . site.primary_domain.domain_name . '/wp-json/vip/v1/sites' )
+					.timeout( 10 )
+					.end( ( err, response ) => {
+						if ( err ) {
+							return done( err)
+						}
+
+						// If a blog id was specified, make sure it's in the list
+
+
+
+						// Find the chosen site out of the list
+
+						// @todo this endpoint doesn't return an id i can use
+
+						var id = null;
+
+
+						// Save the id into the site object for later use
+						options[ 'blog-id' ] = id;
+
+						// site.target_blog_domain =
+
+						return done( null );
+					});
+			},*/
+
+
 			execFile.bind( null, 'wc', [ '-l', filesList ] ),
 			( stdout, stderr, done ) => {
 				// Must replace out the filename, as `wc -l` returns it unless
@@ -317,6 +357,46 @@ program
 
 				return done( null );
 			},
+			// Prompt user to confirm
+			( done ) => {
+				var confirm = 'Will import ' + filecount + ' files into ' + site.primary_domain.domain_name + ' (' + site.client_site_id + ')';
+
+				if ( site.is_multisite ) {
+
+
+					// @todo add on blogs domain for sanity check
+					confirm += ' (Blog ID ' + options['blog-id'] + ')';
+				}
+
+				confirm += '. Continue? (y/n)';
+
+				promptly.prompt( confirm, {
+					default: 'n',
+					validator: ( value ) => {
+						if ( -1 === [ 'n', 'y' ].indexOf( value ) ) {
+							throw new Error( 'Please type \'y\' or \'n\'' );
+						}
+
+						return value;
+					},
+					retry: true, // If validator fails, auto-retry
+				}, ( err, value ) => {
+					if ( err ) {
+						return done( err );
+					}
+
+					if ( 'n' === value ) {
+						console.log( 'You have chosen...wisely. Import aborted.' );
+
+						return process.exit();
+					}
+
+					return done( null );
+				});
+			},
+
+
+
 		], ( err ) => {
 			if ( err ) {
 				return console.error( err );
@@ -337,9 +417,21 @@ program
 				reader.resume();
 			};
 
+			// NOTE - Decided to use the line-by-line package instead of native 'readline'
+			// because the pause/resume in readline wasn't working correctly
 			reader = new readline( filesList );
 
 			reader.on( 'line', ( url ) => {
+				if ( ! isAllowedType( url, options.types, options.extraTypes ) ||
+					( ! options.intermediate && INTERMEDIATE_REGEX.test( file ) ) ||
+					! isImportableMediaUrl( url ) ) {
+					bar.tick();
+
+					console.log( 'Skipping ' + url );
+
+					return;
+				}
+
 				queue.push({
 					url:          url,
 					site:         site,
@@ -356,27 +448,39 @@ program
 
 function scrapeFile( data, callback ) {
 
+	// @todo Handle 'fast' param
+
+	// @todo handle the tick
+
+	// @todo figure out how to handle the callback
+
+	// @todo have a CLI argument for forcing the blog id...so if we couldn't determine it or it's a private site, we can still import
+
+	var relativePath = getGoFilesRelativePath( data.url, data.site );
+
+	// Url will be /wp-content/uploads/... with a sites/:id on multisite
+	var url = 'https://files.vipv2.net/' + relativePath;
 
 
+	var upload = request
+		.put( url )
+		.set({
+			'X-Client-Site-ID': data.site.client_site_id,
+			'X-Access-Token': data.access_token,
+		});
 
-	// Placeholder scraper for testing
+	var output = fs.createWriteStream( relativePath );
 
-	// Filter by filetype
+	var download = request
+		.get( data.url )
+		.timeout({
+			response: 10000, // Wait up to 10 seconds for the server to respond (doesn't limit total download time)
+		})
+		.on( 'error', streamingDownloadErrorHandler )
+		//.pipe( upload );
 
-	// Handle intermediates
-
-	// Handle 'fast' param
-
-
-
-
-	setTimeout( () => {
-		if ( data.bar ) {
-			data.bar.tick();
-		}
-
-		return callback( null );
-	}, 500 );
+		// Temp testing only
+		.pipe( output );
 }
 
 program
@@ -415,6 +519,54 @@ program
 			});
 		});
 	});
+
+function getGoFilesRelativePath( url, site ) {
+	// Parse it down to the pathname
+	var parsed = urlUtils.parse( url );
+
+	// If site is multisite, and this is not the primary blog, adjust path accordingly
+	if ( site.is_multisite && site.multisite_id ) {
+
+	}
+
+	///// @todo - remove existing /sites/:id part of url, add new sites/:id
+
+	return parsed.pathname;
+}
+
+function streamingDownloadErrorHandler( err ) {
+	// @todo output to file
+
+
+
+
+	console.log( err );
+}
+
+function isAllowedType( file, types, extraTypes ) {
+	var ext = file.split( '.' );
+
+	ext = ext[ ext.length - 1 ];
+
+	if ( ! ext || ( types.indexOf( ext.toLowerCase() ) < 0 && extraTypes.indexOf( ext.toLowerCase() ) < 0 ) ) {
+		return false;
+	}
+
+	return true;
+}
+
+/**
+ * Determine if the url is importable into VIP Go
+ */
+function isImportableMediaUrl( url ) {
+	var parsed = urlUtils.parse( url );
+
+	if ( 0 !== parsed.pathname.indexOf( '/wp-content/uploads' ) ) {
+		return false;
+	}
+
+	return true;
+}
 
 program.parse( process.argv );
 if ( ! process.argv.slice( 2 ).length ) {

@@ -87,8 +87,6 @@ const default_types = [
 	'key','numbers','pages',
 ];
 
-const INTERMEDIATE_IMAGE_REGEX = /-\d+x\d+\.\w{3,4}$/;
-
 program
 	.command( 'files <site> <directory>' )
 	.description( 'Import files to a VIP Go site' )
@@ -165,7 +163,7 @@ program
 										return cb( new Error( "Unsupported filetype: " + file ) );
 									}
 
-									if ( ! options.intermediate && INTERMEDIATE_IMAGE_REGEX.test( file ) ) {
+									if ( ! options.intermediate && imports.isIntermediateImage( file ) ) {
 										return cb( new Error( 'Skipping intermediate image: ' + file ) );
 									}
 
@@ -245,7 +243,7 @@ program
 				return next();
 			}
 
-			if ( ! options.intermediate && INTERMEDIATE_IMAGE_REGEX.test( file ) ) {
+			if ( ! options.intermediate && imports.isIntermediateImage( file ) ) {
 				return next();
 			}
 
@@ -423,7 +421,7 @@ program
 
 			reader.on( 'line', ( url ) => {
 				if ( ! imports.isAllowedType( url, options.types, options.extraTypes ) ||
-					( ! options.intermediate && INTERMEDIATE_IMAGE_REGEX.test( url ) ) ||
+					( ! options.intermediate && imports.isIntermediateImage( url ) ) ||
 					! imports.isImportableMediaUrl( url ) ) {
 					bar.tick();
 

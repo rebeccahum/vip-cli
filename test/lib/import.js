@@ -53,3 +53,16 @@ describe( 'isImportableMediaUrl', () => {
 		imports.isImportableMediaUrl( '/subdir/wp-content/uploads/sites/1/2017/01/01/image.jpg' ).should.equal( false );
 	});
 });
+
+describe( 'isIntermediateImage', () => {
+	it( 'should correctly identify intermediate images', () => {
+		// Not intermediate
+		imports.isIntermediateImage( 'image.jpg' ).should.equal( false );
+		imports.isIntermediateImage( 'image.blah.jpg' ).should.equal( false );
+		imports.isIntermediateImage( 'https://vip.wordpress.com/wp-content/uploads/2017/01/01/image.jpg' ).should.equal( false );
+
+		// Is intermediate
+		imports.isIntermediateImage( 'image-690x460.jpg' ).should.equal( true );
+		imports.isIntermediateImage( 'https://vip.wordpress.com/wp-content/uploads/2017/01/01/image-690x460.jpg' ).should.equal( true );
+	});
+});

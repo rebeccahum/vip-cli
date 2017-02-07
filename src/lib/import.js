@@ -114,3 +114,12 @@ export function isImportableMediaUrl( url ) {
 
 	return true;
 }
+
+/**
+ * Determine if the filename represents an intermediae image
+ */
+export function isIntermediateImage( file ) {
+	const INTERMEDIATE_IMAGE_REGEX = /-\d+x\d+\.\w{3,4}$/;
+
+	return INTERMEDIATE_IMAGE_REGEX.test( file );
+}

@@ -1,5 +1,6 @@
 const fs = require( 'fs' );
 const http = require( 'http' );
+const urlUtils = require( 'url' );
 
 export function upload( site, file, token, cb ) {
 	fs.readFile( file, ( err, data ) => {
@@ -79,14 +80,17 @@ export function getGoFilesRelativePath( url, site ) {
 	// Parse it down to the pathname
 	var parsed = urlUtils.parse( url );
 
+	var relative = parsed.pathname;
+
 	// If site is multisite, and this is not the primary blog, adjust path accordingly
 	if ( site.is_multisite && site.multisite_id ) {
-
+		// do stuff
+		relative = null;
 	}
 
 	///// @todo - remove existing /sites/:id part of url, add new sites/:id
 
-	return parsed.pathname;
+	return relative;
 }
 
 export function streamingDownloadErrorHandler( err ) {

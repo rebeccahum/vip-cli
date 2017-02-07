@@ -8,7 +8,7 @@ const program  = require( 'commander' );
 const async    = require( 'async' );
 const progress = require( 'progress' );
 const request  = require( 'superagent' );
-const execFile = require('child_process').execFile;
+const execFile = require( 'child_process' ).execFile;
 const which    = require( 'which' );
 const promptly = require( 'promptly' );
 
@@ -245,7 +245,7 @@ program
 				return next();
 			}
 
-			if ( ! options.intermediate && INTERMEDIATE_REGEX.test( file ) ) {
+			if ( ! options.intermediate && INTERMEDIATE_IMAGE_REGEX.test( file ) ) {
 				return next();
 			}
 
@@ -278,7 +278,7 @@ program
 	.option( '-p, --parallel <threads>', 'Number of parallel uploads. Default: 5', 5, parseInt )
 	.option( '-i, --intermediate', 'Upload intermediate images' )
 	.option( '-f, --fast', 'Skip existing file check' )
-	.action( ( site, filesList, options ) => {
+	.action( ( inputSite, filesList, options ) => {
 		var site         = null;
 		var access_token = null;
 		var filecount    = 0;
@@ -286,11 +286,11 @@ program
 		var reader       = null;
 		var parallel     = parseInt( options.parallel );
 
-		async.waterfall([
+		async.waterfall( [
 
 
 
-			/*utils.findAndConfirmSite.bind( utils, site, 'Importing files for site:' ),
+			/*utils.findAndConfirmSite.bind( utils, inputSite, 'Importing files for site:' ),
 			( site, done ) => {
 				api
 					.get( '/sites/' + site.client_site_id + '/meta/files_access_token' )
@@ -423,7 +423,7 @@ program
 
 			reader.on( 'line', ( url ) => {
 				if ( ! imports.isAllowedType( url, options.types, options.extraTypes ) ||
-					( ! options.intermediate && INTERMEDIATE_REGEX.test( file ) ) ||
+					( ! options.intermediate && INTERMEDIATE_IMAGE_REGEX.test( url ) ) ||
 					! imports.isImportableMediaUrl( url ) ) {
 					bar.tick();
 

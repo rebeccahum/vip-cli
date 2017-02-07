@@ -62,3 +62,51 @@ export function queueDir( dir, offset, cb ) {
 		] );
 	});
 }
+
+export function isAllowedType( file, types, extraTypes ) {
+	var ext = file.split( '.' );
+
+	ext = ext[ ext.length - 1 ];
+
+	if ( ! ext || ( types.indexOf( ext.toLowerCase() ) < 0 && extraTypes.indexOf( ext.toLowerCase() ) < 0 ) ) {
+		return false;
+	}
+
+	return true;
+}
+
+export function getGoFilesRelativePath( url, site ) {
+	// Parse it down to the pathname
+	var parsed = urlUtils.parse( url );
+
+	// If site is multisite, and this is not the primary blog, adjust path accordingly
+	if ( site.is_multisite && site.multisite_id ) {
+
+	}
+
+	///// @todo - remove existing /sites/:id part of url, add new sites/:id
+
+	return parsed.pathname;
+}
+
+export function streamingDownloadErrorHandler( err ) {
+	// @todo output to file
+
+
+
+
+	console.log( err );
+}
+
+/**
+ * Determine if the url is importable into VIP Go
+ */
+export function isImportableMediaUrl( url ) {
+	var parsed = urlUtils.parse( url );
+
+	if ( 0 !== parsed.pathname.indexOf( '/wp-content/uploads' ) ) {
+		return false;
+	}
+
+	return true;
+}

@@ -161,7 +161,7 @@ program
 								} else if ( stats.isFile() ) {
 									var filepath = file.split( 'uploads' );
 
-									if ( ! isAllowedType( file, options.types, options.extraTypes ) ) {
+									if ( ! imports.isAllowedType( file, options.types, options.extraTypes ) ) {
 										return cb( new Error( "Unsupported filetype: " + file ) );
 									}
 
@@ -241,7 +241,7 @@ program
 
 		walker.on( 'file', ( root, file, next ) => {
 			// Check file type
-			if ( ! isAllowedType( file, options.types, options.extraTypes ) ) {
+			if ( ! imports.isAllowedType( file, options.types, options.extraTypes ) ) {
 				return next();
 			}
 
@@ -422,9 +422,9 @@ program
 			reader = new readline( filesList );
 
 			reader.on( 'line', ( url ) => {
-				if ( ! isAllowedType( url, options.types, options.extraTypes ) ||
+				if ( ! imports.isAllowedType( url, options.types, options.extraTypes ) ||
 					( ! options.intermediate && INTERMEDIATE_REGEX.test( file ) ) ||
-					! isImportableMediaUrl( url ) ) {
+					! imports.isImportableMediaUrl( url ) ) {
 					bar.tick();
 
 					console.log( 'Skipping ' + url );
@@ -456,7 +456,7 @@ function scrapeFile( data, callback ) {
 
 	// @todo have a CLI argument for forcing the blog id...so if we couldn't determine it or it's a private site, we can still import
 
-	var relativePath = getGoFilesRelativePath( data.url, data.site );
+	var relativePath = imports.getGoFilesRelativePath( data.url, data.site );
 
 	// Url will be /wp-content/uploads/... with a sites/:id on multisite
 	var url = 'https://files.vipv2.net/' + relativePath;
@@ -476,7 +476,7 @@ function scrapeFile( data, callback ) {
 		.timeout({
 			response: 10000, // Wait up to 10 seconds for the server to respond (doesn't limit total download time)
 		})
-		.on( 'error', streamingDownloadErrorHandler )
+		.on( 'error', imports.streamingDownloadErrorHandler )
 		//.pipe( upload );
 
 		// Temp testing only
@@ -519,54 +519,6 @@ program
 			});
 		});
 	});
-
-function getGoFilesRelativePath( url, site ) {
-	// Parse it down to the pathname
-	var parsed = urlUtils.parse( url );
-
-	// If site is multisite, and this is not the primary blog, adjust path accordingly
-	if ( site.is_multisite && site.multisite_id ) {
-
-	}
-
-	///// @todo - remove existing /sites/:id part of url, add new sites/:id
-
-	return parsed.pathname;
-}
-
-function streamingDownloadErrorHandler( err ) {
-	// @todo output to file
-
-
-
-
-	console.log( err );
-}
-
-function isAllowedType( file, types, extraTypes ) {
-	var ext = file.split( '.' );
-
-	ext = ext[ ext.length - 1 ];
-
-	if ( ! ext || ( types.indexOf( ext.toLowerCase() ) < 0 && extraTypes.indexOf( ext.toLowerCase() ) < 0 ) ) {
-		return false;
-	}
-
-	return true;
-}
-
-/**
- * Determine if the url is importable into VIP Go
- */
-function isImportableMediaUrl( url ) {
-	var parsed = urlUtils.parse( url );
-
-	if ( 0 !== parsed.pathname.indexOf( '/wp-content/uploads' ) ) {
-		return false;
-	}
-
-	return true;
-}
 
 program.parse( process.argv );
 if ( ! process.argv.slice( 2 ).length ) {

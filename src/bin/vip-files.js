@@ -6,6 +6,7 @@ const fs = require( 'fs' );
 const path = require( 'path' );
 const async = require( 'async' );
 const progress = require( 'progress' );
+const request = require( 'request' );
 
 // Ours
 const api = require( '../lib/api' );
@@ -60,15 +61,10 @@ program
 										},
 									};
 
-									https.get( filedata, download => {
-										download.pipe( newFile );
-										download.on( 'end', () => {
-											bar.tick();
-											newFile.close( callback );
-										}).on( 'error', err => {
-											fs.unlink( dest );
-											callback( err );
-										});
+									var url = 'https://' + site.domain_name + file.file_path;
+									request.get( url ).pipe( newFile ).on( 'close', () => {
+										bar.tick();
+										callback();
 									});
 								}, err => cb( err ) );
 							});

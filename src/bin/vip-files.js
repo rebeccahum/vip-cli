@@ -51,16 +51,6 @@ program
 									utils.mkdirp( dir );
 									var newFile = fs.createWriteStream( dest );
 
-									// Download the file
-									var filedata = {
-										host: 'files.vipv2.net',
-										servername: 'files.vipv2.net',
-										path: file.file_path,
-										headers: {
-											'Host': site.domain_name,
-										},
-									};
-
 									var url = 'https://' + site.domain_name + file.file_path;
 									request.get( url ).pipe( newFile ).on( 'close', () => {
 										bar.tick();

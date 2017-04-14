@@ -9,6 +9,35 @@ const siteUtils   = require( '../lib/site' );
 const hostUtils   = require( '../lib/host' );
 
 program
+	.command( 'login <site> [<email>]' )
+	.description( 'Create a vip-support account on a VIP Go site' )
+	.action( ( site, email ) => {
+		utils.findSite( site, ( err, site ) => {
+			if ( err ) {
+				return console.error( err );
+			}
+
+			let body = {};
+
+			if ( email ) {
+				body.userLogin = email;
+				body.userEmail = email;
+			}
+
+			api
+				.post( '/sites/' + site.client_site_id + '/support-users' )
+				.send( body )
+				.end( ( err, res ) => {
+					if ( err ) {
+						return console.error( err.response.body );
+					}
+
+					console.log( res.body.data );
+				});
+		});
+	});
+
+program
 	.command( 'upgrade' )
 	.description( 'Update/Rebuild a site\'s web containers based on DC allocation records or default config' )
 	.option( '-c, --client <client_id>', 'Client to target' )

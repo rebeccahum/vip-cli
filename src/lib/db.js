@@ -32,6 +32,18 @@ function getConnection( site, callback ) {
 		});
 }
 
+function getTables( site, callback ) {
+	getConnection( site, ( err, connectionArgs ) => {
+		if ( err ) {
+			return callback( err );
+		}
+
+		let args = connectionArgs.concat( [ '-e "show tables"' ] );
+
+		spawn( 'mysql', args, { stdio: 'inherit' });
+	});
+}
+
 export function importDB( site, file, opts, callback ) {
 
 	// Default opts
@@ -92,4 +104,20 @@ export function getCLI( site, callback ) {
 
 		spawn( 'mysql', args, { stdio: 'inherit' });
 	});
+}
+
+export function sanitiseTables( site, callback ) {
+
+	getTables( site, ( err, args ) => {
+		if ( err ) {
+			return callback( err );
+		}
+
+		// TODO:
+		// * Loop through tables
+		// * Match on any wp_*postmeta, wp_*commentmeta or wp_*options tables
+		// * Run commands as laid out in 19d29-pb
+
+	} );
+
 }

@@ -63,6 +63,64 @@ program
 		});
 	});
 
+program
+	.command( 'sanitise <site>' )
+	.alias( 'sanitize' )
+	.description( 'Sanitise a freshly imported database.' )
+	.action( site, options => {
+		try {
+			which.sync( 'mysql' );
+		} catch ( e ) {
+			return console.error( 'MySQL client is required and not installed.' );
+		}
+
+		utils.findSite( site, ( err, s ) => {
+			if ( err ) {
+				return console.error( err );
+			}
+
+			if ( ! s ) {
+				return console.error( "Couldn't find site:", site );
+			}
+
+			if ( ! require( 'tty' ).isatty( 1 ) ) {
+				console.log( '-- Site:', s.client_site_id );
+				console.log( '-- Domain:', s.domain_name );
+				console.log( '-- Environment:', s.environment_name );
+				return db.exportDB( s, err => {
+					if ( err ) {
+						return console.error( err );
+					}
+				});
+			}
+
+			var ays = s.environment_name === 'production' ? 'This is the database for PRODUCTION. Are you sure?' : 'Are you sure?';
+
+			utils.displayNotice( [
+				'Connecting to database:',
+				`-- Site: ${ s.domain_name } (#${ s.client_site_id })`,
+				'-- Environment: ' + s.environment_name,
+			] );
+
+			promptly.confirm( ays, ( err, t ) => {
+				if ( err ) {
+					return console.error( err );
+				}
+
+				if ( ! t ) {
+					return;
+				}
+
+				db.sanitiseTables( site, ( err ) => {
+					return console.error( err );
+				} );
+
+				utils.displayNotice( 'Sanitisation complete.' );
+
+			} );
+
+	} );
+
 program.parse( process.argv );
 if ( ! process.argv.slice( 2 ).length ) {
 	program.help();

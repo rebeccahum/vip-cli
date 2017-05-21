@@ -108,6 +108,8 @@ export function getCLI( site, callback ) {
 
 export function sanitiseTables( site, callback ) {
 
+	// TODO: Handle instances where we need to sanitise a subset of the DB tables,
+	// e.g. when import a single site into a multisite.
 	getTables( site, ( err, args ) => {
 		if ( err ) {
 			return callback( err );

@@ -50,15 +50,23 @@ export function getDCAllocation( container, done ) {
 			}
 
 			// HACK: Because GET /allocations returns on active=1 by default
-			// TODO: Would be nice if it returned the allocation regardless or had a flag for active='any'
+			// TODO: Would be nice if it returned the allocation regardless or had a flag for active=any
 			if ( ! response.body.data || ! response.body.data.length ) {
 				return api.get( urlInactive )
 					.end( ( err, response ) => {
-						return done( err, response );
+						if ( err ) {
+							return done( err );
+						}
+
+						if ( ! response.body.data || ! response.body.data.length ) {
+							return done();
+						}
+
+						return done( null, response.body.data[0] );
 					});
 			}
 
-			done( null, response );
+			done( null, response.body.data[0] );
 		});
 }
 
@@ -90,7 +98,18 @@ export const updateDCAllocation = ( allocation, done ) => {
 
 export function setDCAllocation( container, newAllocation, done ) {
 	const buildAllocationObject = ( container, currentAllocation, newAllocation ) => {
-		const { datacenter_allocation_id, min_instances, max_instances } = currentAllocation;
+		const existingAllocation = {};
+		if ( currentAllocation.datacenter_allocation_id ) {
+			existingAllocation.datacenter_allocation_id = currentAllocation.datacenter_allocation_id;
+		}
+
+		if ( currentAllocation.min_instances ) {
+			existingAllocation.min_instances = currentAllocation.min_instances;
+		}
+
+		if ( currentAllocation.max_instances ) {
+			existingAllocation.max_instances = currentAllocation.max_instances;
+		}
 
 		return Object.assign({
 			// all required fields
@@ -101,22 +120,20 @@ export function setDCAllocation( container, newAllocation, done ) {
 			software_stack_id: container.software_stack_id,
 			min_instances: 2,
 			max_instances: 10,
-		}, { datacenter_allocation_id, min_instances, max_instances }, newAllocation );
+		}, existingAllocation, newAllocation );
 	};
 
-	getDCAllocation( container, ( err, response ) => {
+	getDCAllocation( container, ( err, allocation ) => {
 		if ( err ) {
 			return done( err );
 		}
 
-		const allocation = response.body.data;
-		if ( ! allocation || ! allocation.length ) {
+		if ( ! allocation ) {
 			const data = buildAllocationObject( container, {}, newAllocation );
 			return addDCAllocation( data, done );
 		}
 
-		const currentAllocation = allocation[0];
-		const data = buildAllocationObject( container, currentAllocation, newAllocation );
+		const data = buildAllocationObject( container, allocation, newAllocation );
 		updateDCAllocation( data, done );
 	});
 }

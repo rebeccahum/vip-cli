@@ -205,7 +205,7 @@ program
 				const Table = require( 'cli-table' );
 				const stdout = require( 'single-line-log' ).stdout;
 
-				siteUtils.getContainers( site )
+				siteUtils.getContainers( site, { active: 'any' })
 					.then( containers => {
 						const table = new Table({
 							head: [ '#', 'Name', 'Type', 'Status' ],

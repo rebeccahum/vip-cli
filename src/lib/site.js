@@ -1,5 +1,6 @@
-//
+// Others
 const async = require( 'async' );
+const querystring = require( 'querystring' );
 
 // Ours
 const api = require( './api' );
@@ -36,10 +37,15 @@ export function update( site, opts ) {
 	});
 }
 
-export function getContainers( site ) {
+export function getContainers( site, query ) {
 	return new Promise( ( resolve, reject ) => {
+		let url = '/sites/' + site.client_site_id + '/containers';
+		if ( query ) {
+			url += '?' + querystring.stringify( query );
+		}
+
 		api
-			.get( '/sites/' + site.client_site_id + '/containers' )
+			.get( url )
 			.end( ( err, res ) => {
 				if ( err ) {
 					return reject( err.response.error );
@@ -157,7 +163,7 @@ export function retire( site, onEnd ) {
 	};
 
 	const deleteAllocationChecks = ( site, done ) => {
-		getContainers( site )
+		getContainers( site, { active: 'any' })
 			.then( containers => {
 				console.log( 'Removing DC Allocations...' );
 

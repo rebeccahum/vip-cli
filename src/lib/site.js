@@ -99,7 +99,7 @@ export function retire( site, onEnd ) {
 
 				const filteredContainers = filterContainersBySiteTypeDC( containers );
 
-				const setMinToZero = ( container, done ) => containerUtils.setDCAllocation( container, { min_instances: 0, max_instances: 10 }, done );
+				const setMinToZero = ( container, done ) => containerUtils.setDCAllocation( container, { active: 1, min_instances: 0, max_instances: 10 }, done );
 
 				async.eachSeries( filteredContainers, setMinToZero, onDoneTaskHandler( done ) );
 			})
@@ -163,7 +163,7 @@ export function retire( site, onEnd ) {
 
 				const filteredContainers = filterContainersBySiteTypeDC( containers );
 
-				const deleteAllocations = ( container, done ) => containerUtils.setDCAllocation( container, { active: 0 }, done );
+				const deleteAllocations = ( container, done ) => containerUtils.deleteDCAllocation( container, done );
 
 				async.eachSeries( filteredContainers, deleteAllocations, onDoneTaskHandler( done ) );
 			})

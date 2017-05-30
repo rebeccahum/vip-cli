@@ -39,11 +39,26 @@ export function getDCAllocation( container, done ) {
 	const siteId = container.client_site_id;
 	const containerTypeId = container.container_type_id;
 	const datacenter = container.datacenter;
-	const url = `/sites/${ siteId }/allocations?container_type_id=${ containerTypeId }&datacenter=${ datacenter }`;
+	const urlActive = `/sites/${ siteId }/allocations?container_type_id=${ containerTypeId }&datacenter=${ datacenter }`;
 
-	api.get( url )
+	const urlInactive = urlActive + '&active=0';
+
+	api.get( urlActive )
 		.end( ( err, response ) => {
-			done( err, response );
+			if ( err ) {
+				return done( err );
+			}
+
+			// HACK: Because GET /allocations returns on active=1 by default
+			// TODO: Would be nice if it returned the allocation regardless or had a flag for active='any'
+			if ( ! response.body.data || ! response.body.data.length ) {
+				return api.get( urlInactive )
+					.end( ( err, response ) => {
+						return done( err, response );
+					});
+			}
+
+			done( null, response );
 		});
 }
 

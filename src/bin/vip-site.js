@@ -1,5 +1,5 @@
 const program = require( 'commander' );
-const log = require( 'single-line-log' ).stderr;
+const stdout = require( 'single-line-log' ).stdout;
 const Table = require( 'cli-table' );
 const colors = require( 'colors/safe' );
 
@@ -137,7 +137,7 @@ program
 								});
 
 								let output = table.toString();
-								log( output );
+								stdout( output );
 
 								// TODO: Also check DC allocations because we might not be upgrading to the default
 								if ( done ) {
@@ -186,6 +186,102 @@ program
 				console.log( table.toString() );
 				console.log( res.body.result + ' of ' + res.body.totalrecs + ' results.' );
 			});
+	});
+
+program
+	.command( 'retire <site>' )
+	.description( 'Retire a site by stopping and removing all containers.' )
+	.action( site => {
+		utils.findSite( site, ( err, site ) => {
+			if ( err ) {
+				return console.error( err );
+			}
+
+			if ( ! site ) {
+				return console.error( 'Specified site does not exist. Try the ID.' );
+			}
+
+			const displayContainerStatus = ( site ) => {
+				const Table = require( 'cli-table' );
+				const stdout = require( 'single-line-log' ).stdout;
+
+				siteUtils.getContainers( site )
+					.then( containers => {
+						const table = new Table({
+							head: [ '#', 'Name', 'Type', 'Status' ],
+							style: {
+								head: [ 'blue' ],
+							},
+						});
+
+						containers.forEach( container => {
+							table.push( [
+								container.container_id,
+								container.container_name,
+								container.container_type_name,
+								container.state,
+							] );
+						});
+
+						stdout( table.toString() + '\n\n' + `Last updated: ${ new Date().toISOString() }` );
+					})
+					.catch( err => console.error( 'Failed to get container status. Will retry shortly...', err ) );
+			};
+
+			const retireSite = () => {
+				const tearDown = () => {
+					clearInterval( updateInterval );
+				};
+
+				const updateInterval = setInterval( () => displayContainerStatus( site ), 3000 );
+
+				siteUtils.retire( site, ( err, result ) => {
+					if ( err ) {
+						tearDown();
+						return console.error( 'Failed to retire site due to an error', err );
+					}
+
+					tearDown();
+
+					console.log( 'All done!' );
+				});
+			};
+
+			utils.displayNotice( [
+				'Request to retire site:',
+				`-- Site: ${ site.domain_name } (#${ site.client_site_id })`,
+				'-- Environment: ' + site.environment_name,
+			] );
+
+			if ( ! site.active ) {
+				return console.error( 'This site has either not been initialized or has already been retired.' );
+			}
+
+			utils.maybeConfirm( `This will stop and delete all containers and then disable site ${ site.domain_name } (#${site.client_site_id }). Are you sure?`, true, ( err, yes ) => {
+				if ( ! yes ) {
+					return;
+				}
+
+				utils.maybeConfirm( 'Are you really, really sure (there is no turning back)?', true, ( err, yes ) => {
+					if ( ! yes ) {
+						return;
+					}
+
+					if ( site.environment_name !== 'production' ) {
+						return retireSite();
+					}
+
+					// One last check for production sites
+					utils.maybeConfirm( 'This is a PRODUCTION site. Are you absolutely sure?', true, ( err, yes ) => {
+						if ( ! yes ) {
+							return;
+						}
+
+						return retireSite();
+					});
+				});
+			});
+		});
 	});
 
 program.parse( process.argv );

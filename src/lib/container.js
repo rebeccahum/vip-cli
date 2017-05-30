@@ -74,7 +74,9 @@ export const updateDCAllocation = ( allocation, done ) => {
 };
 
 export function setDCAllocation( container, newAllocation, done ) {
-	const buildAllocationObject = ( currentAllocation, newAllocation ) => {
+	const buildAllocationObject = ( container, currentAllocation, newAllocation ) => {
+		const { datacenter_allocation_id, min_instances, max_instances } = currentAllocation;
+
 		return Object.assign({
 			// all required fields
 			client_site_id: container.client_site_id,
@@ -84,7 +86,7 @@ export function setDCAllocation( container, newAllocation, done ) {
 			software_stack_id: container.software_stack_id,
 			min_instances: 2,
 			max_instances: 10,
-		}, currentAllocation, newAllocation );
+		}, { datacenter_allocation_id, min_instances, max_instances }, newAllocation );
 	};
 
 	getDCAllocation( container, ( err, response ) => {
@@ -94,12 +96,12 @@ export function setDCAllocation( container, newAllocation, done ) {
 
 		const allocation = response.body.data;
 		if ( ! allocation || ! allocation.length ) {
-			const data = buildAllocationObject({}, newAllocation );
+			const data = buildAllocationObject( container, {}, newAllocation );
 			return addDCAllocation( data, done );
 		}
 
 		const currentAllocation = allocation[0];
-		const data = buildAllocationObject( currentAllocation, newAllocation );
+		const data = buildAllocationObject( container, currentAllocation, newAllocation );
 		updateDCAllocation( data, done );
 	});
 }

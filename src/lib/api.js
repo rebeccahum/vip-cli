@@ -30,12 +30,16 @@ export function get( url ) {
 	return api.get( url ).use( handleAuth );
 }
 
-export function post( url ) {
-	return api.post( url ).use( handleAuth );
+export function post( url, data ) {
+	return api.post( url )
+		.send( data )
+		.use( handleAuth );
 }
 
-export function put( url ) {
-	return api.put( url ).use( handleAuth );
+export function put( url, data ) {
+	return api.put( url )
+		.send( data )
+		.use( handleAuth );
 }
 
 export function del( url ) {

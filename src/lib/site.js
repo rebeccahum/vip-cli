@@ -163,7 +163,7 @@ export function retire( site, onEnd ) {
 
 				const filteredContainers = filterContainersBySiteTypeDC( containers );
 
-				const deleteAllocations = ( container, done ) => containerUtils.deleteDCAllocation( container, done );
+				const deleteAllocations = ( container, done ) => containerUtils.setDCAllocation( container, { active: 0 }, done );
 
 				async.eachSeries( filteredContainers, deleteAllocations, onDoneTaskHandler( done ) );
 			})

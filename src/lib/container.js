@@ -23,9 +23,9 @@ export function deleteContainer( container, done ) {
 		return done( new Error( 'Cannot delete container that is not in a `stopped` state.' ) );
 	}
 
-	const url = `/containers/${ container.container_id }/delete`;
+	const url = `/containers/${ container.container_id }`;
 
-	api.post( url )
+	api.del( url )
 		.end( ( err, response ) => {
 			if ( err ) {
 				return done( err );

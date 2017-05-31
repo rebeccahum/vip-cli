@@ -11,7 +11,7 @@ const utils = require( '../lib/utils' );
 program
 	.command( 'tables <site> <tables>' )
 	.description( 'Export tables from a VIP Go site' )
-	.action( ( site, tables, options ) =>
+	.action( ( site, tables, options ) => {
 		try {
 			which.sync( 'mysql' );
 		} catch ( e ) {

@@ -57,6 +57,7 @@ utils.getCredentials( ( err, user ) => {
 			.command( 'files <site>', 'Export files for a site' )
 			.command( 'host-action', 'Create and view host actions' )
 			.command( 'import', 'Import to VIP Go' );
+			.command( 'export', 'Export from VIP Go' );
 
 		if ( is_sandbox ) {
 			program

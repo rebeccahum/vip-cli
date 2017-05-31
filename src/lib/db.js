@@ -84,6 +84,18 @@ export function exportDB( site, callback ) {
 	});
 }
 
+export function exportTables( site, tables, callback ) {
+	getConnection( site, ( err, connectionArgs ) => {
+		if ( err ) {
+			return callback( err );
+		}
+
+		let args = connectionArgs.concat( [ '--single-transaction', '--quick', tables ] );
+
+		spawn( 'mysqldump', args, { stdio: 'inherit' });
+	});
+}
+
 export function getCLI( site, callback ) {
 	getConnection( site, ( err, args ) => {
 		if ( err ) {

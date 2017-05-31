@@ -56,7 +56,7 @@ utils.getCredentials( ( err, user ) => {
 			.command( 'deploy <site> <sha>', 'Deploy given git sha' )
 			.command( 'files <site>', 'Export files for a site' )
 			.command( 'host-action', 'Create and view host actions' )
-			.command( 'import', 'Import to VIP Go' );
+			.command( 'import', 'Import to VIP Go' )
 			.command( 'export', 'Export from VIP Go' );
 
 		if ( is_sandbox ) {

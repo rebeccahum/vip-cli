@@ -5,9 +5,13 @@ export function update( site, opts ) {
 	opts = opts || {};
 	site = site || {};
 
-	let url = Object.keys( opts ).length > 0 ?
-		`/actions/upgrade_wp` :
-		`/actions/${site.client_site_id}/upgrade_wp`;
+	var url;
+
+	if ( opts.client_site_id ) {
+		url = `/actions/${opts.client_site_id}/upgrade_wp`;
+	} else {
+		url = '/actions/upgrade_wp';
+	}
 
 	return new Promise( ( resolve, reject ) => {
 		api

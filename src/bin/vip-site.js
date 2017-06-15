@@ -10,7 +10,7 @@ const siteUtils   = require( '../lib/site' );
 const hostUtils   = require( '../lib/host' );
 
 program
-	.command( 'upgrade' )
+	.command( 'upgrade [<site>]' )
 	.description( 'Update/Rebuild a site\'s web containers based on DC allocation records or default config' )
 	.option( '-c, --client <client_id>', 'Client to target' )
 	.option( '-l, --launched', 'Target launched sites only?' )
@@ -18,8 +18,7 @@ program
 	.option( '-n, --pagesize <pagesize>', 'Number of sites to update per batch', 5, parseInt )
 	.option( '-e, --environment <env>', 'Environment to target' )
 	.option( '-w, --wp <version>', 'WordPress version to target' )
-	.option( '-i, --site <client_site_id>', 'Client Site ID to target' )
-	.action( ( options ) => {
+	.action( ( site, options ) => {
 		// TODO: Optionally pass in a site ID for single site upgrade
 		let query = {};
 
@@ -48,113 +47,119 @@ program
 		}
 
 		// Note: This needs to come last so we appropriately nerf the query object
-		if ( options.site ) {
-			query = { client_site_id: options.site };
+		if ( site ) {
+			query = null;
 		}
 
-		utils.displayNotice( [
-			'Triggering web server update/rebuild:',
-			query,
-		] );
+		utils.findSite( site, ( err, site ) => {
+			if ( ! site && ! query ) {
+				return console.error( 'Could not find specified site.' );
+			}
 
-		siteUtils.update( null, query )
-			.then( data => {
-				let failed = data.failed.map( d => d.name || d.domain_name );
+			utils.displayNotice( [
+				'Triggering web server update/rebuild:',
+				site.domain_name || query,
+			] );
 
-				if ( failed.length > 0 ) {
-					console.log( 'Warning: Failed to queue upgrades for ', failed.join( ', ' ) );
-				}
+			siteUtils.update( site, query )
+				.then( data => {
+					let failed = data.failed.map( d => d.name || d.domain_name );
 
-				// Continue with sites that were successfully queued
-				return data.sites;
-			})
-			.then( sites => {
-				if ( sites.length <= 0 ) {
-					return console.log( "No sites to update" );
-				}
+					if ( failed.length > 0 ) {
+						console.log( 'Warning: Failed to queue upgrades for ', failed.join( ', ' ) );
+					}
 
-				api
-					.get( '/container_types/1' )
-					.end( ( err, res ) => {
-						if ( err ) {
-							return console.error( 'Could not retrieve default software stack' );
-						}
+					// Continue with sites that were successfully queued
+					return data.sites;
+				})
+				.then( sites => {
+					if ( sites.length <= 0 ) {
+						return console.log( "No sites to update" );
+					}
 
-						var defaultStack = res.body.data[0].software_stack_name;
+					api
+						.get( '/container_types/1' )
+						.end( ( err, res ) => {
+							if ( err ) {
+								return console.error( 'Could not retrieve default software stack' );
+							}
 
-						var updatingInterval = setInterval( () => {
-							let upgrading = sites.map( site => {
-								return siteUtils.getContainers( site )
-								.then( containers => containers.filter( container => container.container_type_id === 1 ) );
-							});
+							var defaultStack = res.body.data[0].software_stack_name;
 
-							Promise.all( upgrading )
-							.then( sites => {
-								var table = new Table({
-									head: [ 'Site', 'Container ID', 'Container Status', 'Software Stack' ],
-									style: {
-										head: ['blue'],
-									},
+							var updatingInterval = setInterval( () => {
+								let upgrading = sites.map( site => {
+									return siteUtils.getContainers( site )
+									.then( containers => containers.filter( container => container.container_type_id === 1 ) );
 								});
 
-								sites.forEach( site => {
-									site.forEach( container => {
-										let colorizedState = container.state;
+								Promise.all( upgrading )
+								.then( sites => {
+									var table = new Table({
+										head: [ 'Site', 'Container ID', 'Container Status', 'Software Stack' ],
+										style: {
+											head: ['blue'],
+										},
+									});
 
-										switch ( colorizedState ) {
-										case 'running':
-											if ( container.software_stack_name === defaultStack ) {
-												colorizedState = colors['green']( colorizedState );
-											} else {
-												colorizedState = colors['yellow']( colorizedState );
+									sites.forEach( site => {
+										site.forEach( container => {
+											let colorizedState = container.state;
+
+											switch ( colorizedState ) {
+											case 'running':
+												if ( container.software_stack_name === defaultStack ) {
+													colorizedState = colors['green']( colorizedState );
+												} else {
+													colorizedState = colors['yellow']( colorizedState );
+												}
+												break;
+											case 'upgrading':
+												colorizedState = colors['blue']( colorizedState );
+												break;
+											case 'stopped':
+											case 'uninitialized':
+												colorizedState = colors['red']( colorizedState );
 											}
-											break;
-										case 'upgrading':
-											colorizedState = colors['blue']( colorizedState );
-											break;
-										case 'stopped':
-										case 'uninitialized':
-											colorizedState = colors['red']( colorizedState );
-										}
 
-										table.push( [
-											container.domain_name,
-											container.container_id,
-											colorizedState,
-											container.software_stack_name,
-										] );
+											table.push( [
+												container.domain_name,
+												container.container_id,
+												colorizedState,
+												container.software_stack_name,
+											] );
+										});
 									});
-								});
 
-								let done = sites.every( site => {
-									return site.every( container => {
-										if ( container.state === 'stopped' || container.state === 'uninitialized' ) {
-											return true;
-										}
+									let done = sites.every( site => {
+										return site.every( container => {
+											if ( container.state === 'stopped' || container.state === 'uninitialized' ) {
+												return true;
+											}
 
-										if ( container.state !== 'running' ) {
-											return false;
-										}
+											if ( container.state !== 'running' ) {
+												return false;
+											}
 
-										return container.software_stack_name === defaultStack;
+											return container.software_stack_name === defaultStack;
+										});
 									});
-								});
 
-								let output = table.toString();
-								log( output );
+									let output = table.toString();
+									log( output );
 
-								// TODO: Also check DC allocations because we might not be upgrading to the default
-								if ( done ) {
-									clearInterval( updatingInterval );
-									console.log();
-									console.log( 'Update complete' );
-								}
-							})
-							.catch( err => console.error( err.message ) );
-						}, 2000 );
-					});
-			})
-			.catch( err => console.error( err.message ) );
+									// TODO: Also check DC allocations because we might not be upgrading to the default
+									if ( done ) {
+										clearInterval( updatingInterval );
+										console.log();
+										console.log( 'Update complete' );
+									}
+								})
+								.catch( err => console.error( err.message ) );
+							}, 2000 );
+						});
+				})
+				.catch( err => console.error( err.message ) );
+		});
 	});
 
 program

@@ -112,9 +112,12 @@ export function retire( site, onEnd ) {
 			.catch( err => done( err ) );
 	};
 
-	const checkForContainerState = ( site, state, done ) => {
+	const checkForContainerState = ( site, typeId, state, done ) => {
 		getContainers( site ).
 			then( containers => {
+				if ( typeId !== null ) {
+					containers = containers.filter( container => container.container_type_id === typeId );
+				}
 				const notAtState = containers.find( c => c.state !== state );
 
 				if ( notAtState ) {
@@ -126,9 +129,9 @@ export function retire( site, onEnd ) {
 			.catch( err => done( err ) );
 	};
 
-	const waitForStoppedContainers = ( site, done ) => {
+	const waitForStoppedContainers = ( site, typeId, done ) => {
 		const wait = () => {
-			checkForContainerState( site, 'stopped', ( err, allAtState ) => {
+			checkForContainerState( site, typeId, 'stopped', ( err, allAtState ) => {
 				if ( err ) {
 					return done( err );
 				}
@@ -146,7 +149,7 @@ export function retire( site, onEnd ) {
 
 	const waitForDeletedContainers = ( site, done ) => {
 		const wait = () => {
-			checkForContainerState( site, 'deleted', ( err, allAtState ) => {
+			checkForContainerState( site, null, 'deleted', ( err, allAtState ) => {
 				if ( err ) {
 					return done( err );
 				}
@@ -176,12 +179,14 @@ export function retire( site, onEnd ) {
 			.catch( err => done( err ) );
 	};
 
-	const stopContainers = ( site, done ) => {
+	const stopContainersByType = ( site, typeId, done ) => {
 		getContainers( site )
 			.then( containers => {
-				console.log( 'Stopping containers...' );
+				const filteredContainers = containers.filter( container => container.container_type_id === typeId );
 
-				async.eachSeries( containers, containerUtils.stopContainer, onDoneTaskHandler( done ) );
+				console.log( `Stopping containers of type ID ${ typeId }` );
+
+				async.eachSeries( filteredContainers, containerUtils.stopContainer, onDoneTaskHandler( done ) );
 			})
 			.catch( err => done( err ) );
 	};
@@ -198,10 +203,17 @@ export function retire( site, onEnd ) {
 
 	return async.series( [
 		( done ) => disableAllocationChecks( site, done ),
-		( done ) => stopContainers( site, done ),
-		( done ) => waitForStoppedContainers( site, done ),
+		// Need to stop containers in order
+		( done ) => stopContainersByType( site, 1, done ), // web
+		( done ) => waitForStoppedContainers( site, 1, done ),
+		( done ) => stopContainersByType( site, 3, done ), // mem
+		( done ) => waitForStoppedContainers( site, 3, done ),
+		( done ) => stopContainersByType( site, 2, done ), // db
+		( done ) => waitForStoppedContainers( site, 2, done ),
+		( done ) => setTimeout( done, 10000 ),
 		( done ) => deleteContainers( site, done ),
 		( done ) => waitForDeletedContainers( site, done ),
+		( done ) => setTimeout( done, 10000 ),
 		( done ) => deleteAllocationChecks( site, done ),
 		( done ) => deleteSite( site, done ),
 	], onEnd );

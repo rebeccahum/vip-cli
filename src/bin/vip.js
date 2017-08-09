@@ -73,6 +73,9 @@ utils.getCredentials( ( err, user ) => {
 			.command( 'import', 'Import to VIP Go' );
 	}
 
+	program
+		.command( 'logs <site>', 'Get logs from production' );
+
 	if ( isSandbox ) {
 		program
 			.command( 'sandbox <action> <site>', 'Maintain sandbox containers' )

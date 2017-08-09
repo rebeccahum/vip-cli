@@ -36,6 +36,7 @@
     "cli-table": "^0.3.1",
     "colors": "^1.1.2",
     "commander": "2.9.0",
+    "elasticsearch": "^13.3.1",
     "node-pv": "^0.1.5",
     "progress": "^1.1.8",
     "promptly": "1.0.0",
